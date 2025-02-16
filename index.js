@@ -1,16 +1,14 @@
 const express = require("express");
 const cors = require("cors");
 const mysql = require("mysql2");
-const bodyParser = require("body-parser");
 
 const app = express();
 const PORT = 3000;
 
-// ✅ Middleware
 app.use(cors());
 app.use(express.json());
 
-// ✅ CORS Headers (For Cross-Origin Requests)
+// ✅ CORS Headers Middleware (For Cross-Origin Requests)
 app.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
@@ -18,7 +16,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// ✅ MySQL Database Configuration (HARD-CODED)
+// ✅ MySQL Database Configuration
 const db = mysql.createConnection({
   host: "sql12.freemysqlhosting.net",
   user: "sql12762989",
@@ -45,7 +43,7 @@ app.post("/submit-payment", (req, res) => {
     return res.status(400).json({ success: false, error: "All fields are required." });
   }
 
-  // 🔹 SQL Query to Insert Data
+  // 🔹 SQL Query to Insert Data (Removed `pass` field)
   const query = "INSERT INTO examinerusers (h, acttime, actstatus) VALUES (?, ?, ?)";
   db.query(query, [h, acttime, actstatus], (err, result) => {
     if (err) {
