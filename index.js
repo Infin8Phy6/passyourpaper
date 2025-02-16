@@ -5,21 +5,26 @@ const mysql = require("mysql2");
 const app = express();
 const PORT = 3000;
 
-// ✅ Configure CORS (Allow Specific Origins)
+// ✅ Configure CORS (Allow localhost:8081)
 const allowedOrigins = ["http://localhost:8081"];
 
-app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error("CORS not allowed"));
-    }
-  },
-  methods: ["GET", "POST", "PUT", "DELETE"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-  credentials: true // Allow credentials if needed
-}));
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  
+  if (allowedOrigins.includes(origin)) {
+    res.header("Access-Control-Allow-Origin", origin);
+    res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+    res.header("Access-Control-Allow-Credentials", "true");
+  }
+
+  // ✅ Handle Preflight Requests (OPTIONS)
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(204); // Send No Content status
+  }
+
+  next();
+});
 
 app.use(express.json());
 
