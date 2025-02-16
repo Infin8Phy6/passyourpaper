@@ -5,18 +5,25 @@ const mysql = require("mysql2");
 const app = express();
 const PORT = 3000;
 
-app.use(cors());
+// ✅ Configure CORS (Allow Specific Origins)
+const allowedOrigins = ["http://localhost:8081"];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("CORS not allowed"));
+    }
+  },
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true // Allow credentials if needed
+}));
+
 app.use(express.json());
 
-// ✅ CORS Headers Middleware (For Cross-Origin Requests)
-app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
-  next();
-});
-
-// ✅ MySQL Database Configuration
+// ✅ Hardcoded MySQL Database Configuration
 const db = mysql.createConnection({
   host: "sql12.freemysqlhosting.net",
   user: "sql12762989",
@@ -25,33 +32,46 @@ const db = mysql.createConnection({
   port: 3306,
 });
 
-// ✅ Connect to MySQL
-db.connect((err) => {
-  if (err) {
-    console.error("❌ MySQL Connection Failed:", err);
-    process.exit(1); // Exit if DB fails to connect
-  }
-  console.log("✅ MySQL Connected Successfully!");
-});
+// ✅ Handle MySQL Connection & Auto-Reconnect
+const connectToDB = () => {
+  db.connect((err) => {
+    if (err) {
+      console.error("❌ MySQL Connection Failed:", err);
+      setTimeout(connectToDB, 5000); // Try reconnecting after 5s
+    } else {
+      console.log("✅ MySQL Connected Successfully!");
+    }
+  });
 
-// ✅ Route to handle Proof of Payment submission
+  db.on("error", (err) => {
+    console.error("❌ MySQL Error:", err);
+    if (err.code === "PROTOCOL_CONNECTION_LOST") {
+      console.log("🔄 Reconnecting to MySQL...");
+      connectToDB(); // Reconnect on connection loss
+    }
+  });
+};
+
+connectToDB();
+
+// ✅ Route to Handle Proof of Payment Submission
 app.post("/submit-payment", (req, res) => {
   const { h, acttime, actstatus } = req.body;
 
-  // 🔹 Validate input (ensure no null values)
+  // 🔹 Validate Input
   if (!h || !acttime || !actstatus) {
     return res.status(400).json({ success: false, error: "All fields are required." });
   }
 
-  // 🔹 SQL Query to Insert Data (Removed `pass` field)
+  // 🔹 SQL Query to Insert Data
   const query = "INSERT INTO examinerusers (h, acttime, actstatus) VALUES (?, ?, ?)";
   db.query(query, [h, acttime, actstatus], (err, result) => {
     if (err) {
-      console.error("❌ Error inserting data:", err);
+      console.error("❌ Database Error:", err);
       return res.status(500).json({ success: false, error: "Database error." });
     }
 
-    console.log("✅ Data inserted successfully:", result);
+    console.log("✅ Data Inserted:", result);
     res.json({ success: true, message: "Payment proof submitted successfully!" });
   });
 });
